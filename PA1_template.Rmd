@@ -1,25 +1,224 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research. Peer Assessment 1"
+author: "Roman Savchenko"
+date: "2022-12-24"
+output: html_document
 ---
+
+
+## Change the locale for the R process.
+```{r setlocale, echo = TRUE}
+Sys.getlocale()
+Sys.setlocale("LC_ALL","English")
+Sys.getlocale()
+```
 
 
 ## Loading and preprocessing the data
 
+The reading of the data from the activity.csv file to the R data frame.
+```{r loaddata, echo = TRUE}
+activity <- read.csv(file = 'activity.csv')
+head(activity)
+str(activity)
+```
+
+The creation of an additional variable to count cases when activity$steps=NA.
+```{r addnavar, echo = TRUE}
+activity$stepsNA <- ifelse(is.na(activity$steps), 1, 0)
+head(activity)
+str(activity)
+unique(activity$stepsNA)
+```
+
+The creation of an additional variable for 2 digit value of the month.
+```{r addmonth, echo = TRUE}
+activity$month <- substr(activity$date, 6, 7)
+head(activity)
+str(activity)
+unique(activity$month)
+```
+
+The creation of an additional variable for the numeric date variable.
+```{r addndate, echo = TRUE}
+activity$dateN <- as.Date(activity$date, format = "%Y-%m-%d")
+head(activity)
+str(activity)
+```
+
+The creation of an additional variable for the day of the week.
+```{r addweekday, echo = TRUE}
+activity$weekDay <- weekdays(activity$dateN, abbreviate = TRUE)
+head(activity)
+str(activity)
+unique(activity$weekDay)
+```
+
+The creation of an additional factor variable for the day of the week.
+```{r addweekday_fact, echo = TRUE}
+activity$weekDayFact <- as.factor(ifelse(activity$weekDay %in% c("Sat", "Sun"),
+                                         "weekend", "weekday"))
+head(activity)
+str(activity)
+unique(activity$weekDayFact)
+```
+
+The including of the R Stats package for the calculations.
+```{r incl_stats, echo = TRUE}
+library(stats)
+```
+
+The including of the R Graphics package to produce histogram.
+```{r incl_graph, echo = TRUE}
+library(graphics)
+```
+
+The including of the R package to produce time series plot.
+```{r incl_ggplot2, echo = TRUE}
+library(ggplot2)
+```
 
 
 ## What is mean total number of steps taken per day?
 
+The calculation of the total number of steps taken per day.
+```{r steps_day, echo = TRUE}
+stepsPerDay <- aggregate(x = activity$steps, by = list(activity$date), 
+                         FUN = sum, na.rm = TRUE)
+    colnames(stepsPerDay)[colnames(stepsPerDay) == 'Group.1'] <- 'date'
+    colnames(stepsPerDay)[colnames(stepsPerDay) == 'x'] <- 'StepsTot'
+print(stepsPerDay)
+```
+
+The creation of a histogram of the total number of steps taken each day.
+```{r hist_totsteps, echo = TRUE}
+hist(stepsPerDay$StepsTot,
+     main = "Histogram of The Total Number of Steps Taken Each Day",
+     breaks = 25,
+     xlim = c(0, 25000),
+     ylim = c(0, 12),
+     xlab = "Total Number of Steps",
+     labels = TRUE)
+```
+
+The calculation of the mean of the total number of steps taken per day.
+```{r steps_mean, echo = TRUE}
+MeanSteps <- mean(stepsPerDay$StepsTot, na.rm = TRUE)
+MeanSteps
+MeanStepsRnd <- round(MeanSteps, digits = 2)
+MeanStepsRnd
+```
+
+The calculation of the median of the total number of steps taken per day.
+```{r steps_median, echo = TRUE}
+MedianSteps <- median(stepsPerDay$StepsTot, na.rm = TRUE)
+MedianSteps
+MedianStepsRnd <- round(MedianSteps, digits = 2)
+MedianStepsRnd
+```
 
 
 ## What is the average daily activity pattern?
+The making of a time series plot of the 5-minute interval and the average number of steps taken.
+```{r timeseries_plot, echo = TRUE}
+stepsPerInterval <- aggregate(x = activity$steps, by = list(activity$interval), 
+                              FUN = mean, na.rm = TRUE)
+    colnames(stepsPerInterval)[colnames(stepsPerInterval) == 'Group.1'] <- 'interval'
+    colnames(stepsPerInterval)[colnames(stepsPerInterval) == 'x'] <- 'StepsAvg'
+plot <- ggplot(stepsPerInterval, aes(x = interval, y = StepsAvg)) +
+        geom_line() +
+        labs(x = "5-minute Interval", y = "Avereage of the steps", 
+             title="Avereage of number of steps taken per 5-minue intervals")
+plot
+```
 
+The selection of the 5-minute interval with the maximum number of steps
+```{r maxstep_interval, echo = TRUE}
+MaxStepAvg <- max(stepsPerInterval$StepsAvg)
+MaxInt <- subset(stepsPerInterval, StepsAvg == MaxStepAvg,
+                 select = c(interval, StepsAvg))
+MaxInt
+```
 
 
 ## Imputing missing values
 
+The calculation of the total number of missing values in the data frame.
+```{r total_missing, echo = TRUE}
+sum(activity$stepsNA)
+```
+
+The missing values will be imputed with the average value for the same time interval
+```{r impute_missing, echo = TRUE}
+PreImp <- merge(activity, stepsPerInterval, by = "interval")
+StepsImp <- PreImp
+   StepsImp$steps <- ifelse(is.na(StepsImp$steps), StepsImp$StepsAvg, StepsImp$steps)
+head(StepsImp)
+str(StepsImp)
+```
+
+The creation of a histogram of the total number of imputed steps.
+```{r hist_impsteps, echo = TRUE}
+StepsImpDay <- aggregate(x = StepsImp$steps, by = list(StepsImp$date), 
+                         FUN = sum, na.rm = TRUE)
+    colnames(StepsImpDay)[colnames(StepsImpDay) == 'Group.1'] <- 'date'
+    colnames(StepsImpDay)[colnames(StepsImpDay) == 'x'] <- 'StepsImpTot'
+print(StepsImpDay)
+hist(StepsImpDay$StepsImpTot,
+     main = "Histogram of The Total Number of Imputed Steps Taken Each Day",
+     breaks = 25,
+     xlim = c(0, 25000),
+     ylim = c(0, 25),
+     xlab = "Total Number of Steps",
+     labels = TRUE)
+```
+
+The calculation of the mean of the total number of steps taken per day.
+```{r stepsimp_mean, echo = TRUE}
+MeanImpSteps <- mean(StepsImpDay$StepsImpTot, na.rm = TRUE)
+MeanImpSteps
+MeanImpStepsRnd <- round(MeanImpSteps, digits = 2)
+MeanImpStepsRnd
+```
+
+The calculation of the median of the total number of steps taken per day.
+```{r stepsimp_median, echo = TRUE}
+MedianImpSteps <- median(StepsImpDay$StepsImpTot, na.rm = TRUE)
+MedianImpSteps
+MedImpStepsRnd <- round(MedianImpSteps, digits = 2)
+MedImpStepsRnd
+```
+
+The mean value is changed from `r MeanStepsRnd` to `r MeanImpStepsRnd` and the median is changed from `r MedianStepsRnd` to `r MedImpStepsRnd`.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Splitting data for weekdays and weekends in different data frames.
+```{r split_weekdays, echo = TRUE}
+WeekDays <- subset(activity, weekDayFact == "weekday")
+WeekEnds <- subset(activity, weekDayFact == "weekend")
+```
+
+Calculation of the average number of steps for each new data frame.
+```{r }
+WeekDaysInt <- aggregate(x = WeekDays$steps, by = list(WeekDays$interval), 
+                         FUN = mean, na.rm = TRUE)
+    colnames(WeekDaysInt)[colnames(WeekDaysInt) == 'Group.1'] <- 'interval'
+    colnames(WeekDaysInt)[colnames(WeekDaysInt) == 'x'] <- 'StepsAvg'
+plot <- ggplot(WeekDaysInt, aes(x = interval, y = StepsAvg)) +
+        geom_line() +
+        labs(x = "5-minute Interval", y = "Avereage of the steps", 
+             title="Avereage of number of steps across weekdays")
+plot
+
+WeekEndsInt <- aggregate(x = WeekEnds$steps, by = list(WeekEnds$interval), 
+                         FUN = mean, na.rm = TRUE)
+    colnames(WeekEndsInt)[colnames(WeekEndsInt) == 'Group.1'] <- 'interval'
+    colnames(WeekEndsInt)[colnames(WeekEndsInt) == 'x'] <- 'StepsAvg'
+plot <- ggplot(WeekEndsInt, aes(x = interval, y = StepsAvg)) +
+        geom_line() +
+        labs(x = "5-minute Interval", y = "Avereage of the steps", 
+             title="Avereage of number of steps across weekends")
+plot
+```

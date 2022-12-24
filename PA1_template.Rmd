@@ -2,7 +2,9 @@
 title: "Reproducible Research. Peer Assessment 1"
 author: "Roman Savchenko"
 date: "2022-12-24"
-output: html_document
+output:
+   html_document:
+      keep_md: true
 ---
 
 
